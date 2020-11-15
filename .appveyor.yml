@@ -3,7 +3,7 @@ version: 0.1.{build}
 init:
     - git config --global core.autocrlf input
 
-shallow_clone: true
+shallow_clone: false
 skip_branch_with_pr: true
 
 matrix:
@@ -27,7 +27,7 @@ for:
             - job_name: Windows build
         clone_folder: c:\projects\yaml-parser
         before_build:
-            - ps: git submodule update --init --recursive
+            - git submodule update --init --recursive
         build_script:
             - mkdir build
             - cd build
