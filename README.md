@@ -1,4 +1,4 @@
-![Build Status: Windows](https://ci.appveyor.com/api/projects/status/github/ivorob/yaml-parser?branch=master&svg=true)
+[![Build status](https://ci.appveyor.com/api/projects/status/m4kpney1pa73t0r4?svg=true)](https://ci.appveyor.com/project/ivorob/yaml-parser)
 
 # yaml-parser
 Easy yaml parser
