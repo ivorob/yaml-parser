@@ -10,7 +10,7 @@ YAML::Parser::Parser(AbstractEventObserver *eventObserver)
 }
 
 bool
-YAML::Parser::parse([[maybe_unused]] std::istream& input)
+YAML::Parser::parse(std::istream& input)
 {
     std::string line;
     while (std::getline(input, line)) {
