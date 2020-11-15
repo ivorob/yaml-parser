@@ -1,0 +1,51 @@
+version: 0.1.{build}
+
+init:
+    - git config --global core.autocrlf input
+
+shallow_clone: true
+skip_branch_with_pr: true
+
+matrix:
+    fast_finish: true
+
+platform:
+    - x64
+
+configuration:
+    - Release
+
+environment:
+    matrix:
+        - job_name: Windows build
+          appveyor_build_worker_image: Visual Studio 2017
+
+for:
+    -
+        matrix:
+          only:
+            - job_name: Windows build
+        clone_folder: c:\projects\yaml-parser
+        build_script:
+            - set PATH=c:\Qt\5.12.6\msvc2017_64\bin;%PATH%
+            - echo %PATH%
+            - mkdir build
+            - cd build
+            - cmake -G "Visual Studio 15 2017 Win64" .. -DCMAKE_PREFIX_PATH=C:\Qt\5.12.6\msvc2017_64
+            - cmake --build . --config Release
+            - cmake --build . --target package --config Release
+        artifacts:
+            - path: build\yaml-parser-*.exe
+
+install:
+
+deploy:
+    - provider: GitHub
+      auth_token:
+        secure: XDu4+kIKFFYWIc3yR7x9eX1kWZzF5aBmItTxzytX+Rwy5bwazcAHuN+wzOe8XkOE
+      draft: false
+      prerelease: false
+      on:
+        branch: master
+        APPVEYOR_REPO_TAG: true
+
