@@ -27,8 +27,7 @@ for:
             - job_name: Windows build
         clone_folder: c:\projects\yaml-parser
         before_build:
-            - cd c:\projects\yaml-parser
-            - git submodule update --recursive --init
+            - ps: git submodule update --init --recursive
         build_script:
             - mkdir build
             - cd build
