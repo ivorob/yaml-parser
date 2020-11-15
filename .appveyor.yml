@@ -34,7 +34,7 @@ for:
             - cmake -G "Visual Studio 15 2017 Win64" -DBUILD_SHARED_LIBS=ON -DBUILD_TESTING=ON ..
             - cmake --build . --config Release
         test_script:
-            - Release\tests\yaml-parser-tests.exe --gtest_output=xml || cd .
+            - build\Release\tests\yaml-parser-tests.exe --gtest_output=xml || cd .
         on_finish:
             - sh: find "$APPVEYOR_BUILD_FOLDER" -type f -name 'TEST*.xml' -print0 | xargs -0 -I '{}' curl -F 'file=@{}' "https://ci.appveyor.com/api/testresults/junit/$APPVEYOR_JOB_ID"
         artifacts:
