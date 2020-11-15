@@ -27,15 +27,12 @@ for:
             - job_name: Windows build
         clone_folder: c:\projects\yaml-parser
         build_script:
-            - set PATH=c:\Qt\5.12.6\msvc2017_64\bin;%PATH%
-            - echo %PATH%
             - mkdir build
             - cd build
-            - cmake -G "Visual Studio 15 2017 Win64" .. -DCMAKE_PREFIX_PATH=C:\Qt\5.12.6\msvc2017_64
+            - cmake -G "Visual Studio 15 2017 Win64" -DBUILD_SHARED_LIBS=ON ..
             - cmake --build . --config Release
-            - cmake --build . --target package --config Release
         artifacts:
-            - path: build\yaml-parser-*.exe
+            - path: build\yaml-parser*.dll
 
 install:
 
