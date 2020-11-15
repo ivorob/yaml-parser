@@ -31,6 +31,8 @@ for:
             - cd build
             - cmake -G "Visual Studio 15 2017 Win64" -DBUILD_SHARED_LIBS=ON ..
             - cmake --build . --config Release
+        test_script:
+            - ctest -VV -C Release
         artifacts:
             - path: build\*\yaml-parser.dll
 
