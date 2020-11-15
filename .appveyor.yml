@@ -37,12 +37,7 @@ for:
             - C:\projects\yaml-parser\build\tests\Release\yaml-parser-tests.exe --gtest_output=xml || cd .
         after_test:
             - echo "After running tests..."
-            - ps >
-                # upload results to AppVeyor
-                $wc = New-Object 'System.Net.WebClient'
-                $wc.UploadFile("https://ci.appveyor.com/api/testresults/xunit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path C:\projects\yaml-parser\build\tests\Release\test_detail.xml))
-
-              # - sh: find "$APPVEYOR_BUILD_FOLDER" -type f -name 'TEST*.xml' -print0 | xargs -0 -I '{}' curl -F 'file=@{}' "https://ci.appveyor.com/api/testresults/junit/$APPVEYOR_JOB_ID"
+            - sh: find "$APPVEYOR_BUILD_FOLDER" -type f -name 'TEST*.xml' -print0 | xargs -0 -I '{}' curl -F 'file=@{}' "https://ci.appveyor.com/api/testresults/junit/$APPVEYOR_JOB_ID"
         artifacts:
             - path: build\*\yaml-parser.dll
 
