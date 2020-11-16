@@ -15,6 +15,7 @@ YAML::Parser::parse(std::istream& input)
     std::string line;
     while (std::getline(input, line)) {
         std::stringstream localInput(line);
+        localInput.unsetf(std::ios_base::skipws);
         if (!parseLine(localInput)) {
             break;
         }
@@ -35,23 +36,25 @@ YAML::Parser::parseLine(std::istream& input)
         Spaces,
         Map,
     } state = State::Init;
-    //TODO: count spaces
+
     char symbol = 0;
+    int spaces = skipSpaces(input);
     while (input >> symbol)
     {
         if (symbol == ' ' || symbol == '\t') {
-            if (state == State::Scalar && !scalar.empty())
+            if (!scalar.empty())
             {
                 scalars.push_back(scalar);
                 scalar.clear();
             }
 
+            skipSpaces(input);
             state = State::Spaces;
         } else if (symbol == ':') {
-            if (state == State::Scalar && !scalar.empty()) {
+            if (!scalar.empty()) {
                 scalars.push_back(scalar);
                 scalar.clear();
-            } else if (!scalars.empty()) {
+            } else if (scalars.empty()) {
                 //TODO: special exception type
                 throw std::runtime_error("No name for mapping");
             }
@@ -60,6 +63,12 @@ YAML::Parser::parseLine(std::istream& input)
 
             name = scalars.back();
             scalars.pop_back();
+        } else if (symbol == '\r' || symbol == '\n') {
+            input.setstate(std::ios_base::eofbit);
+            break;
+        } else if (symbol == '#') {
+            input.setstate(std::ios_base::eofbit);
+            break;
         } else {
             state = State::Scalar;
             scalar.push_back(symbol);
@@ -71,8 +80,17 @@ YAML::Parser::parseLine(std::istream& input)
     }
 
     if (!name.empty() && eventObserver != nullptr && !scalars.empty()) {
-        eventObserver->newMapItem(name, scalars.front(), 0);
+        eventObserver->newMapItem(name, scalars.front(), spaces);
     }
 
     return !input.bad() && input.eof();
+}
+
+int
+YAML::Parser::skipSpaces(std::istream& input)
+{
+    auto startPosition = input.tellg();
+    input >> std::ws;
+    auto endPosition = input.tellg();
+    return static_cast<int>(endPosition - startPosition);
 }

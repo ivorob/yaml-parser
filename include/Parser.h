@@ -14,6 +14,8 @@ public:
     bool parse(std::istream& input);
 private:
     bool parseLine(std::istream& input);
+
+    int skipSpaces(std::istream& input);
 private:
     AbstractEventObserver *eventObserver = nullptr;
 };
