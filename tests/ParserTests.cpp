@@ -37,6 +37,12 @@ public:
         this->events[name] = Value(value, spaces);
     }
 
+    void newSequenceItem(const std::string& value, int spaces) override {
+        static int i = 0;
+        auto arrayName = "array" + std::to_string(++i);
+        events[arrayName] = Value(value, spaces);
+    }
+
     std::map<std::string, Value> events;
 };
 
@@ -140,4 +146,16 @@ TEST(YamlParser, collectionEventWithSpacesAtBeginTest)
     ASSERT_EQ(1, observer.events.size());
     ASSERT_EQ("65", observer.events["hr"].getValue());
     ASSERT_EQ(4, observer.events["hr"].getSpaces());
+}
+
+TEST(YamlParser, simpleSequencesEventTest)
+{
+    EventObserver observer;
+    YAML::Parser parser(&observer);
+
+    std::stringstream input("- Mark McGwire\r\n"
+                            "- Sammy Sosa\r\n"
+                            "- Key Griffey");
+    ASSERT_TRUE(parser.parse(input));
+    ASSERT_EQ(3, observer.events.size());
 }
