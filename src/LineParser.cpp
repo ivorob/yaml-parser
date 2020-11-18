@@ -20,7 +20,9 @@ public:
         Scalar,
         Spaces,
         Map,
-        Sequence
+        Sequence,
+        Comments,
+        Error,
     };
 };
 
@@ -63,25 +65,32 @@ public:
     }
 
     void addScalar(const std::string& scalar) {
-        if (!scalar.empty()) {
-            this->scalars.push_back(scalar);
-        }
+        this->scalar = scalar;
     }
 
-    bool initMapItem() {
-        if (!scalars.empty()) {
-            this->name = scalars.front();
-            this->scalars.pop_front();
-            return true;
-        }
+    void generateMapEvent() {
+        if (!scalar.empty()) {
+            const auto& name = this->scalar;
+            if (this->eventObserver != nullptr) {
+                this->eventObserver->newMapItem(name, this->spaces);
+            }
 
-        return false;
+            scalar.clear();
+        } else {
+            setState(getState(State::Error));
+        }
     }
 
     void makeEvents() {
-        if (!this->name.empty() && this->eventObserver != nullptr && !this->scalars.empty()) {
-            eventObserver->newMapItem(this->name, this->scalars.front(), this->spaces);
+        if (!scalar.empty() && this->eventObserver != nullptr) {
+            this->eventObserver->newScalar(scalar);
         }
+
+        setState(getState(State::Init));
+
+        // init
+        this->spaces = 0;
+        this->scalar.clear();
     }
 
     YAML::AbstractEventObserver *getObserver() {
@@ -90,10 +99,9 @@ public:
 private:
     ParseStateHolder currentState;
     std::map<State, ParseStateHolder> states;
-    std::list<std::string> scalars;
+    std::string scalar;
     int spaces = 0;
     YAML::AbstractEventObserver *eventObserver = nullptr;
-    std::string name;
 };
 
 using ParseContextHolder = std::shared_ptr<ParseContext>;
@@ -115,14 +123,14 @@ public:
                 //    getContext()->setState(getContext()->getState(State::Sequence));
                 //    break;
                 case '#':
-                    input.setstate(std::ios_base::eofbit);
+                    context->setState(context->getState(State::Comments));
                     break;
                 default:
                     context->setState(context->getState(State::Scalar));
                     break;
             }
         } else {
-            getContext()->makeEvents();
+            context->makeEvents();
         }
 
         return true;
@@ -189,6 +197,8 @@ public:
             }
         } else {
             getContext()->addScalar(scalar);
+
+            scalar.clear();
             getContext()->makeEvents();
         }
 
@@ -209,9 +219,33 @@ public:
         char symbol = 0;
         if (!(input >> symbol) || std::isspace(symbol))
         {
-            getContext()->initMapItem();
+            getContext()->generateMapEvent();
+
             getContext()->setState(getContext()->getState(State::Spaces));
             return true;
+        }
+
+        return false;
+    }
+};
+
+class ParseCommentsState : public ParseState {
+public:
+    ParseCommentsState(ParseContextHolder context)
+        : ParseState(context)
+    {
+    }
+
+    bool parse(std::istream& input) override {
+        char symbol = 0;
+        if (input >> symbol && symbol == '#')
+        {
+            getContext()->makeEvents();
+
+            input.setstate(std::ios_base::eofbit);
+            return true;
+        } else {
+            getContext()->setState(getContext()->getState(State::Error));
         }
 
         return false;
@@ -239,11 +273,14 @@ YAML::LineParser::initStateMachine(AbstractEventObserver *eventObserver)
     auto spacesState = std::make_shared<ParseSpacesState>(parseContext);
     auto scalarState = std::make_shared<ParseScalarState>(parseContext);
     auto mapState = std::make_shared<ParseMapState>(parseContext);
+    auto commentsState = std::make_shared<ParseCommentsState>(parseContext);
 
     parseContext->setState(initState);
+    parseContext->setState(AbstractParseState::State::Init, initState);
     parseContext->setState(AbstractParseState::State::Spaces, spacesState);
     parseContext->setState(AbstractParseState::State::Scalar, scalarState);
     parseContext->setState(AbstractParseState::State::Map, mapState);
+    parseContext->setState(AbstractParseState::State::Comments, commentsState);
 
     stateMachine = parseContext;
 }
