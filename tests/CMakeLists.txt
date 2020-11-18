@@ -6,10 +6,10 @@ SET (MAIN_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../src)
 SET (SOURCES
         ${SRC_DIR}/tests.cpp
         ${SRC_DIR}/ParserTests.cpp
+        ${SRC_DIR}/LineParserTest.cpp
         ${MAIN_SRC_DIR}/Parser.cpp
+        ${MAIN_SRC_DIR}/LineParser.cpp
     )
-
-SET (CMAKE_CXX_STANDARD 14)
 
 ADD_EXECUTABLE (yaml-parser-tests ${SOURCES})
 TARGET_INCLUDE_DIRECTORIES (yaml-parser-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include)

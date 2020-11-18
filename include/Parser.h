@@ -2,9 +2,9 @@
 
 #include <istream>
 
-namespace YAML {
+#include "LineParser.h"
 
-class AbstractEventObserver;
+namespace YAML {
 
 class Parser {
 public:
@@ -13,11 +13,7 @@ public:
 
     bool parse(std::istream& input);
 private:
-    bool parseLine(std::istream& input);
-
-    int skipSpaces(std::istream& input);
-private:
-    AbstractEventObserver *eventObserver = nullptr;
+    LineParser lineParser;
 };
 
 }

@@ -8,10 +8,12 @@ SET (SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 SET (INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 SET (SOURCES
         ${SRC_DIR}/Parser.cpp
+        ${SRC_DIR}/LineParser.cpp
     )
 
 SET (HEADERS
         ${INCLUDE_DIR}/Parser.h
+        ${INCLUDE_DIR}/LineParser.h
     )
 
 SET (CMAKE_CXX_STANDARD 14)
