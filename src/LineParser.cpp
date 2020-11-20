@@ -18,6 +18,7 @@ public:
     enum class State {
         Init,
         Scalar,
+        ComplexScalar,
         Spaces,
         Map,
         Sequence,
@@ -50,6 +51,14 @@ public:
 
     ParseStateHolder getState(State state) {
         return this->states[state];
+    }
+
+    ParseStateHolder getScalarState() {
+        return this->scalarState;
+    }
+
+    void setScalarState(ParseStateHolder state) {
+        this->scalarState = state;
     }
 
     bool parse(std::istream& input) override {
@@ -104,6 +113,7 @@ public:
     }
 private:
     ParseStateHolder currentState;
+    ParseStateHolder scalarState;
     std::map<State, ParseStateHolder> states;
     std::string scalar;
     int spaces = 0;
@@ -132,7 +142,7 @@ public:
                     context->setState(context->getState(State::Comments));
                     break;
                 default:
-                    context->setState(context->getState(State::Scalar));
+                    context->setState(context->getScalarState());
                     break;
             }
         } else {
@@ -161,6 +171,8 @@ public:
         input >> std::ws;
         auto endPosition = input.tellg();
         getContext()->setInitSpaces(static_cast<int>(endPosition - startPosition));
+
+        getContext()->setScalarState(getContext()->getState(State::Scalar));
         return ParseState::parse(input);
     }
 };
@@ -214,6 +226,48 @@ private:
     std::string scalar;
 };
 
+class ParseComplexScalarState : public ParseState {
+public:
+    ParseComplexScalarState(ParseContextHolder context)
+        : ParseState(context)
+    {
+    }
+
+    bool parse(std::istream& input) override {
+        if (input >> std::ws) {
+            std::string scalar = readAll(input);
+            if (!scalar.empty()) {
+                getContext()->addScalar(scalar);
+                getContext()->makeEvents();
+            }
+        } else {
+            getContext()->makeEvents();
+        }
+
+        return true;
+    }
+private:
+    std::string readAll(std::istream& input) {
+        std::string result;
+
+        char symbol = 0;
+        while (input >> symbol) {
+            if (symbol == '#' || symbol == '\r') {
+                break;
+            }
+
+            result.push_back(symbol);
+        }
+
+        while (!result.empty() && std::isspace(result.back())) {
+            result.pop_back();
+        }
+
+        input.setstate(std::ios_base::eofbit);
+        return result;
+    }
+};
+
 class ParseMapState : public ParseState {
 public:
     ParseMapState(ParseContextHolder context)
@@ -227,6 +281,7 @@ public:
         {
             getContext()->generateMapEvent();
 
+            getContext()->setScalarState(getContext()->getState(State::ComplexScalar));
             getContext()->setState(getContext()->getState(State::Spaces));
             return true;
         }
@@ -318,6 +373,8 @@ YAML::LineParser::initStateMachine(AbstractEventObserver *eventObserver)
             std::make_shared<ParseSpacesState>(parseContext));
     parseContext->setState(AbstractParseState::State::Scalar,
             std::make_shared<ParseScalarState>(parseContext));
+    parseContext->setState(AbstractParseState::State::ComplexScalar,
+            std::make_shared<ParseComplexScalarState>(parseContext));
     parseContext->setState(AbstractParseState::State::Map,
             std::make_shared<ParseMapState>(parseContext));
     parseContext->setState(AbstractParseState::State::Comments,
