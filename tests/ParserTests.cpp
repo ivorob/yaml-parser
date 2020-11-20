@@ -162,7 +162,7 @@ TEST(YamlParser, collectionEventWithSpacesAtBeginTest)
     ASSERT_EQ(4, observer.events["hr"].getSpaces());
 }
 
-/*TEST(YamlParser, simpleSequencesEventTest)
+TEST(YamlParser, simpleSequencesEventTest)
 {
     EventObserver observer;
     YAML::Parser parser(&observer);
@@ -172,4 +172,8 @@ TEST(YamlParser, collectionEventWithSpacesAtBeginTest)
                             "- Key Griffey");
     ASSERT_TRUE(parser.parse(input));
     ASSERT_EQ(3, observer.events.size());
-}*/
+
+    ASSERT_EQ("Mark McGwire", observer.events["array1"].getValue());
+    ASSERT_EQ("Sammy Sosa", observer.events["array2"].getValue());
+    ASSERT_EQ("Key Griffey", observer.events["array3"].getValue());
+}

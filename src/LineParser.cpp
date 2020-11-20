@@ -81,6 +81,12 @@ public:
         }
     }
 
+    void generateSequenceEvent(const std::string& value) {
+        if (eventObserver != nullptr) {
+            this->eventObserver->newSequenceItem(value, this->spaces);
+        }
+    }
+
     void makeEvents() {
         if (!scalar.empty() && this->eventObserver != nullptr) {
             this->eventObserver->newScalar(scalar);
@@ -119,9 +125,9 @@ public:
         char symbol = input.peek();
         if (symbol != EOF) {
             switch (symbol) {
-                //case '-':
-                //    getContext()->setState(getContext()->getState(State::Sequence));
-                //    break;
+                case '-':
+                    getContext()->setState(getContext()->getState(State::Sequence));
+                    break;
                 case '#':
                     context->setState(context->getState(State::Comments));
                     break;
@@ -252,6 +258,41 @@ public:
     }
 };
 
+class ParseSequenceState : public ParseState {
+public:
+    ParseSequenceState(ParseContextHolder context)
+        : ParseState(context)
+    {
+    }
+
+    bool parse(std::istream& input) override {
+        char symbol = 0;
+        if (input >> symbol && symbol == '-')
+        {
+            input >> std::ws;
+
+            std::string scalar = readAll(input);
+            getContext()->generateSequenceEvent(scalar);
+
+            input.setstate(std::ios_base::eofbit);
+            return true;
+        } else {
+            getContext()->setState(getContext()->getState(State::Error));
+        }
+
+        return false;
+    }
+private:
+    std::string readAll(std::istream& input) {
+        std::string data(std::istreambuf_iterator<char>(input), {});
+        while (!data.empty() && std::isspace(data.back())) {
+            data.pop_back();
+        }
+
+        return data;
+    }
+};
+
 }
 
 YAML::LineParser::LineParser()
@@ -270,17 +311,19 @@ YAML::LineParser::initStateMachine(AbstractEventObserver *eventObserver)
     auto parseContext = std::make_shared<ParseContext>(eventObserver);
 
     auto initState = std::make_shared<ParseInitState>(parseContext);
-    auto spacesState = std::make_shared<ParseSpacesState>(parseContext);
-    auto scalarState = std::make_shared<ParseScalarState>(parseContext);
-    auto mapState = std::make_shared<ParseMapState>(parseContext);
-    auto commentsState = std::make_shared<ParseCommentsState>(parseContext);
-
     parseContext->setState(initState);
     parseContext->setState(AbstractParseState::State::Init, initState);
-    parseContext->setState(AbstractParseState::State::Spaces, spacesState);
-    parseContext->setState(AbstractParseState::State::Scalar, scalarState);
-    parseContext->setState(AbstractParseState::State::Map, mapState);
-    parseContext->setState(AbstractParseState::State::Comments, commentsState);
+
+    parseContext->setState(AbstractParseState::State::Spaces,
+            std::make_shared<ParseSpacesState>(parseContext));
+    parseContext->setState(AbstractParseState::State::Scalar,
+            std::make_shared<ParseScalarState>(parseContext));
+    parseContext->setState(AbstractParseState::State::Map,
+            std::make_shared<ParseMapState>(parseContext));
+    parseContext->setState(AbstractParseState::State::Comments,
+            std::make_shared<ParseCommentsState>(parseContext));
+    parseContext->setState(AbstractParseState::State::Sequence,
+            std::make_shared<ParseSequenceState>(parseContext));
 
     stateMachine = parseContext;
 }
