@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <map>
 #include <sstream>
 
 #include "LineParser.h"
@@ -10,6 +11,11 @@ class EventObserver : public YAML::AbstractEventObserver {
 public:
     class Value {
     public:
+        Value()
+            : spaces()
+        {
+        }
+
         Value(const std::string& value, int spaces)
             : value(value),
               spaces(spaces)
@@ -20,6 +26,10 @@ public:
             return this->value;
         }
 
+        void setValue(const std::string& value) {
+            this->value = value;
+        }
+
         int getSpaces() const {
             return this->spaces;
         }
@@ -28,10 +38,15 @@ public:
         int spaces;
     };
 public:
-    void newMapItem(const std::string&, int) override {
+    void newMapItem(const std::string& name, int spaces) override {
+        this->lastAddedMapItem = name;
+        this->events[name] = Value("", spaces);
     }
 
-    void newScalar(const std::string&) override {
+    void newScalar(const std::string& scalar) override {
+        if (this->events.count(this->lastAddedMapItem) != 0) {
+            this->events[this->lastAddedMapItem].setValue(scalar);
+        }
     }
 
     void newSequenceItem(const std::string& scalar, int spaces) override {
@@ -39,6 +54,9 @@ public:
     }
 
     std::vector<Value> sequences;
+    std::map<std::string, Value> events;
+private:
+    std::string lastAddedMapItem;
 };
 
 }
@@ -87,4 +105,16 @@ TEST(YamlLineParser, simpleSequenceWithSpacesAtStartParseEventTest)
     ASSERT_EQ(1, eventObserver.sequences.size());
     ASSERT_EQ("test event", eventObserver.sequences.at(0).getValue());
     ASSERT_EQ(4, eventObserver.sequences.at(0).getSpaces());
+}
+
+TEST(YamlLineParser, parseMultipleColonsInLineTest)
+{
+    std::stringstream input("Time: 2001-11-23 15:01:42 -5");
+    input >> std::noskipws;
+
+    EventObserver eventObserver;
+    YAML::LineParser lineParser(&eventObserver);
+    ASSERT_TRUE(lineParser.parse(input));
+
+    ASSERT_EQ(1, eventObserver.events.size());
 }
