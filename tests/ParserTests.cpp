@@ -108,8 +108,8 @@ TEST(YamlParser, fewCollectionEventsTest)
 TEST(YamlParser, fewCollectionEventsWithSpacesTest)
 {
     std::stringstream input("hr: 65 \r\n"
-                            "avg: 0.278  \r\n"
-                            "rbi: 147    ");
+                            "avg : 0.278  \r\n"
+                            "rbi\t: 147    ");
     EventObserver observer;
 
     YAML::Parser parser(&observer);

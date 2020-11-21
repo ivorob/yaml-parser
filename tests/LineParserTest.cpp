@@ -109,7 +109,7 @@ TEST(YamlLineParser, simpleSequenceWithSpacesAtStartParseEventTest)
 
 TEST(YamlLineParser, parseMultipleColonsInLineTest)
 {
-    std::stringstream input("Time: 2001-11-23 15:01:42 -5");
+    std::stringstream input("Time: 2001-11-23 15:01:42 -5  ");
     input >> std::noskipws;
 
     EventObserver eventObserver;
@@ -117,4 +117,20 @@ TEST(YamlLineParser, parseMultipleColonsInLineTest)
     ASSERT_TRUE(lineParser.parse(input));
 
     ASSERT_EQ(1, eventObserver.events.size());
+    ASSERT_EQ("2001-11-23 15:01:42 -5", eventObserver.events["Time"].getValue());
+    ASSERT_EQ(0, eventObserver.events["Time"].getSpaces());
+}
+
+TEST(YamlLineParser, parseCollectionWithSpaceBeforeColonTest)
+{
+    std::stringstream input("avg : 0.278 ");
+    input >> std::noskipws;
+
+    EventObserver eventObserver;
+    YAML::LineParser lineParser(&eventObserver);
+    ASSERT_TRUE(lineParser.parse(input));
+
+    ASSERT_EQ(1, eventObserver.events.size());
+    ASSERT_EQ("0.278", eventObserver.events["avg"].getValue());
+    ASSERT_EQ(0, eventObserver.events["avg"].getSpaces());
 }

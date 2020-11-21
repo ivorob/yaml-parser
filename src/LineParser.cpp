@@ -141,6 +141,10 @@ public:
                 case '#':
                     context->setState(context->getState(State::Comments));
                     break;
+                case ':':
+                    input.ignore();
+                    context->setState(context->getState(State::Map));
+                    break;
                 default:
                     context->setState(context->getScalarState());
                     break;
