@@ -19,6 +19,7 @@ public:
         Init,
         Scalar,
         ComplexScalar,
+        SequenceScalar,
         Spaces,
         Map,
         Sequence,
@@ -74,7 +75,7 @@ public:
     }
 
     void addScalar(const std::string& scalar) {
-        this->scalar = scalar;
+        this->scalar = rtrim(scalar);
     }
 
     void generateMapEvent() {
@@ -90,9 +91,9 @@ public:
         }
     }
 
-    void generateSequenceEvent(const std::string& value) {
+    void generateSequenceEvent() {
         if (eventObserver != nullptr) {
-            this->eventObserver->newSequenceItem(value, this->spaces);
+            this->eventObserver->newSequenceItem(this->spaces);
         }
     }
 
@@ -101,6 +102,14 @@ public:
             this->eventObserver->newScalar(scalar);
         }
 
+        init();
+    }
+
+    YAML::AbstractEventObserver *getObserver() {
+        return this->eventObserver;
+    }
+private:
+    void init() {
         setState(getState(State::Init));
 
         // init
@@ -108,8 +117,17 @@ public:
         this->scalar.clear();
     }
 
-    YAML::AbstractEventObserver *getObserver() {
-        return this->eventObserver;
+    std::string rtrim(const std::string& value) const {
+        if (value.empty() || !std::isspace(value.back())) {
+            return value;
+        }
+
+        std::string result = value;
+        while (!result.empty() && std::isspace(result.back())) {
+            result.pop_back();
+        }
+
+        return result;
     }
 private:
     ParseStateHolder currentState;
@@ -272,6 +290,53 @@ private:
     }
 };
 
+class ParseSequenceScalarState : public ParseState {
+public:
+    ParseSequenceScalarState(ParseContextHolder context)
+        : ParseState(context)
+    {
+    }
+
+    bool parse(std::istream& input) override {
+        std::string scalar;
+        auto startPosition = input.tellg();
+        if (input >> std::ws) {
+            int spaces = static_cast<int>(input.tellg() - startPosition);
+
+            char symbol = 0;
+            bool scalarContainsSpaces = false;
+            bool hasSpaces = false;
+            while (input >> symbol) {
+                if (symbol == ':') {
+                    if (scalarContainsSpaces) {
+                        getContext()->setState(getContext()->getState(State::Error));
+                        break;
+                    }
+
+                    getContext()->addScalar(scalar);
+                    getContext()->setInitSpaces(getContext()->getInitSpaces() + spaces + 2);
+                    getContext()->setState(getContext()->getState(State::Map));
+                    break;
+                } else if (!std::isspace(symbol)) {
+                    scalar.push_back(symbol);
+
+                    scalarContainsSpaces = hasSpaces;
+                } else if (!scalar.empty()) {
+                    hasSpaces = true;
+                    scalar.push_back(symbol);
+                }
+            }
+        }
+
+        if (input.eof()) {
+            getContext()->addScalar(scalar);
+            getContext()->makeEvents();
+        }
+
+        return true;
+    }
+};
+
 class ParseMapState : public ParseState {
 public:
     ParseMapState(ParseContextHolder context)
@@ -328,27 +393,18 @@ public:
         char symbol = 0;
         if (input >> symbol && symbol == '-')
         {
-            input >> std::ws;
-
-            std::string scalar = readAll(input);
-            getContext()->generateSequenceEvent(scalar);
-
-            input.setstate(std::ios_base::eofbit);
-            return true;
+            if (input >> symbol && !std::isspace(symbol)) {
+                getContext()->setState(getContext()->getState(State::Error));
+            } else {
+                getContext()->generateSequenceEvent();
+                getContext()->setState(getContext()->getState(State::SequenceScalar));
+                return true;
+            }
         } else {
             getContext()->setState(getContext()->getState(State::Error));
         }
 
         return false;
-    }
-private:
-    std::string readAll(std::istream& input) {
-        std::string data(std::istreambuf_iterator<char>(input), {});
-        while (!data.empty() && std::isspace(data.back())) {
-            data.pop_back();
-        }
-
-        return data;
     }
 };
 
@@ -379,6 +435,8 @@ YAML::LineParser::initStateMachine(AbstractEventObserver *eventObserver)
             std::make_shared<ParseScalarState>(parseContext));
     parseContext->setState(AbstractParseState::State::ComplexScalar,
             std::make_shared<ParseComplexScalarState>(parseContext));
+    parseContext->setState(AbstractParseState::State::SequenceScalar,
+            std::make_shared<ParseSequenceScalarState>(parseContext));
     parseContext->setState(AbstractParseState::State::Map,
             std::make_shared<ParseMapState>(parseContext));
     parseContext->setState(AbstractParseState::State::Comments,
