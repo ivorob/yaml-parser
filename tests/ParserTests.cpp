@@ -2,65 +2,7 @@
 #include <sstream>
 
 #include "Parser.h"
-#include "AbstractEventObserver.h"
-
-namespace {
-
-class EventObserver : public YAML::AbstractEventObserver {
-public:
-    class Value {
-    public:
-        Value()
-            : spaces()
-        {
-        }
-
-        Value(const std::string& value, int spaces)
-            : value(value),
-              spaces(spaces)
-        {
-        }
-
-        void setValue(const std::string& value)
-        {
-            this->value = value;
-        }
-
-        const std::string& getValue() const {
-            return this->value;
-        }
-
-        int getSpaces() const {
-            return this->spaces;
-        }
-    private:
-        std::string value;
-        int spaces;
-    };
-public:
-    void newMapItem(const std::string& name, int spaces) override {
-        this->events[name] = Value("", spaces);
-        this->lastAddedMapItem = name;
-    }
-
-    void newScalar(const std::string& scalar) override {
-        if (!this->lastAddedMapItem.empty()) {
-            this->events[this->lastAddedMapItem].setValue(scalar);
-        }
-    }
-
-    void newSequenceItem(const std::string& value, int spaces) override {
-        static int i = 0;
-        auto arrayName = "array" + std::to_string(++i);
-        events[arrayName] = Value(value, spaces);
-    }
-
-    std::map<std::string, Value> events;
-private:
-    std::string lastAddedMapItem;
-};
-
-}
+#include "FakeEventObserver.h"
 
 TEST(YamlParser, collectionTest)
 {
@@ -73,7 +15,7 @@ TEST(YamlParser, collectionTest)
 TEST(YamlParser, collectionEventTest)
 {
     std::stringstream input("hr: 65");
-    EventObserver observer;
+    Fake::EventObserver observer;
 
     YAML::Parser parser(&observer);
     ASSERT_TRUE(parser.parse(input));
@@ -88,7 +30,7 @@ TEST(YamlParser, fewCollectionEventsTest)
     std::stringstream input("hr: 65\r\n"
                             "avg: 0.278\r\n"
                             "rbi: 147");
-    EventObserver observer;
+    Fake::EventObserver observer;
 
     YAML::Parser parser(&observer);
     ASSERT_TRUE(parser.parse(input));
@@ -110,7 +52,7 @@ TEST(YamlParser, fewCollectionEventsWithSpacesTest)
     std::stringstream input("hr: 65 \r\n"
                             "avg : 0.278  \r\n"
                             "rbi\t: 147    ");
-    EventObserver observer;
+    Fake::EventObserver observer;
 
     YAML::Parser parser(&observer);
     ASSERT_TRUE(parser.parse(input));
@@ -132,7 +74,7 @@ TEST(YamlParser, fewCollectionEventsWithCommentsTest)
     std::stringstream input("hr: 65 # Home runs\n"
                             "avg: 0.278 # Batting average\n"
                             "rbi: 147 # Runs Batted In");
-    EventObserver observer;
+    Fake::EventObserver observer;
 
     YAML::Parser parser(&observer);
     ASSERT_TRUE(parser.parse(input));
@@ -152,7 +94,7 @@ TEST(YamlParser, fewCollectionEventsWithCommentsTest)
 TEST(YamlParser, collectionEventWithSpacesAtBeginTest)
 {
     std::stringstream input("    hr: 65");
-    EventObserver observer;
+    Fake::EventObserver observer;
 
     YAML::Parser parser(&observer);
     ASSERT_TRUE(parser.parse(input));
@@ -164,16 +106,57 @@ TEST(YamlParser, collectionEventWithSpacesAtBeginTest)
 
 TEST(YamlParser, simpleSequencesEventTest)
 {
-    EventObserver observer;
+    Fake::EventObserver observer;
     YAML::Parser parser(&observer);
 
     std::stringstream input("- Mark McGwire\r\n"
                             "- Sammy Sosa\r\n"
                             "- Key Griffey");
     ASSERT_TRUE(parser.parse(input));
-    ASSERT_EQ(3, observer.events.size());
+    ASSERT_EQ(3, observer.sequences.size());
 
-    ASSERT_EQ("Mark McGwire", observer.events["array1"].getValue());
-    ASSERT_EQ("Sammy Sosa", observer.events["array2"].getValue());
-    ASSERT_EQ("Key Griffey", observer.events["array3"].getValue());
+    ASSERT_EQ("Mark McGwire", observer.sequences[0].getValue());
+    ASSERT_EQ("Sammy Sosa", observer.sequences[1].getValue());
+    ASSERT_EQ("Key Griffey", observer.sequences[2].getValue());
+}
+
+TEST(YamlParser, parseSequenceOfMappingTest)
+{
+    Fake::EventObserver observer;
+    YAML::Parser parser(&observer);
+
+    std::stringstream input("-\n"
+                            "   name: Mark McGwire\n"
+                            "   hr: 65\n"
+                            "   avg: 0.278\n"
+                            "-\n"
+                            "   name: Sammy Sosa\n"
+                            "   hr: 63\n"
+                            "   avg: 0.288");
+    ASSERT_TRUE(parser.parse(input));
+    ASSERT_EQ(2, observer.sequences.size());
+    ASSERT_EQ(3, observer.events.size());
+}
+
+TEST(YamlParser, parseCompactSequenceOfMappingTest)
+{
+    Fake::EventObserver observer;
+    YAML::Parser parser(&observer);
+
+    std::stringstream input("# Products purchased\r\n"
+                            "- item : Super Hoop\r\n"
+                            "  quantity: 1\r\n"
+                            "- item : Basketball\r\n"
+                            "  quantity: 4\r\n"
+                            "- item : Big Shoes\r\n"
+                            "  quantity: 1");
+    ASSERT_TRUE(parser.parse(input));
+    ASSERT_EQ(3, observer.sequences.size());
+    ASSERT_EQ(2, observer.events.size());
+
+    ASSERT_EQ("Big Shoes", observer.events["item"].getValue());
+    ASSERT_EQ(2, observer.events["item"].getSpaces());
+
+    ASSERT_EQ("1", observer.events["quantity"].getValue());
+    ASSERT_EQ(2, observer.events["quantity"].getSpaces());
 }
